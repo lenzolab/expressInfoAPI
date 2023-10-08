@@ -10,23 +10,25 @@ const cors = require('cors');
 
 
 var acceptedUrlArray = process.env.aAurl
-console.log('acceptedUrlArray')
-console.log(acceptedUrlArray)
-app.use(cors())
+// app.use(function (req, res, next) {
+
+//       const origin = req.headers.origin;
+//       var accept = ''
+
+//       if (acceptedUrlArray.includes(origin)) {
+//             accept = origin
+//       }
+
+//       res.header("Access-Control-Allow-Origin", origin);
+//       res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+//       next();
+// });
+var acceptedUrl = process.env.aurl
 app.use(function (req, res, next) {
-
-      const origin = req.headers.origin;
-      var accept = ''
-
-      if (acceptedUrlArray.includes(origin)) {
-            accept = origin
-      }
-
-      res.header("Access-Control-Allow-Origin", origin);
+      res.header("Access-Control-Allow-Origin", acceptedUrl);
       res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
       next();
 });
-
 
 app.get('/test', function (req, res) {
       console.log('test')
