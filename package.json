@@ -1,0 +1,27 @@
+{
+  "name": "expressinfoapi",
+  "version": "1.0.0",
+  "description": "Information management API",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lenzolab/expressInfoAPI.git"
+  },
+  "author": "Matthew",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/lenzolab/expressInfoAPI/issues"
+  },
+  "homepage": "https://github.com/lenzolab/expressInfoAPI#readme",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "mongoose": "^7.6.0",
+    "nodemon": "^3.0.1"
+  }
+}
