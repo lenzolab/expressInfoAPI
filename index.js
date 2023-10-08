@@ -11,21 +11,30 @@ const cors = require('cors');
 
 
 var acceptedUrlArray = process.env.aAurl
+console.log('acceptedUrlArray')
+console.log(acceptedUrlArray)
 app.use(function (req, res, next) {
+      console.log('use started')
 
       const origin = req.headers.origin;
       var accept = ''
 
-      //       if (acceptedUrlArray.includes(origin)) {
-      //             accept = origin
-      //       }
-      if (acceptedUrlArray.includes('http://127.0.0.1:8080/')) {
+
+      if (acceptedUrlArray.includes(origin)) {
             accept = origin
+
+
+
+            res.header("Access-Control-Allow-Origin", origin);
+            res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+            console.log('Origin Has Been set to:')
+            console.log(origin)
+            next();
+      } else {
+            console.log('Origin Erro. check :')
+            console.log(origin)
       }
 
-      res.header("Access-Control-Allow-Origin", origin);
-      res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-      next();
 });
 // var acceptedUrl = process.env.aurl
 // app.use(function (req, res, next) {
