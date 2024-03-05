@@ -2,21 +2,34 @@ console.log('Hello World')
 var express = require('express');
 var app = express();
 var eenv = require('dotenv').config()
-const port = process.env.PORT || 3001;
-const mongoose = require("mongoose");
-const Data = require('./data')
+const port = process.env.PORT || 3000;
 var dburi = process.env.dburi
 const cors = require('cors');
+var fs = require('fs');
+// const { setFlagsFromString } = require('v8');
+// const { Promise } = require('mongoose');
+// const { setTimeout } = require('timers/promises');
+
+//#region Settings
+
+const codeLength = 4;
+const addressDataFilePath = './data/addressCodes.json'
+
+//#endregion
 
 
 
+
+//#region CORS
 var acceptedUrlArray = process.env.aAurl
 console.log('acceptedUrlArray')
 console.log(acceptedUrlArray)
 app.use(function (req, res, next) {
       console.log('use started')
+      console.info(req.headers)
+      const origin = req.headers.origin || req.headers.host;
+      console.log('req origin   : ' + origin) 
 
-      const origin = req.headers.origin;
       var accept = ''
 
 
@@ -31,17 +44,12 @@ app.use(function (req, res, next) {
             console.log(origin)
             next();
       } else {
-            console.log('Origin Erro. check :')
+            console.log('Origin Error. check :')
             console.log(origin)
       }
 
 });
-// var acceptedUrl = process.env.aurl
-// app.use(function (req, res, next) {
-//       res.header("Access-Control-Allow-Origin", 'http://127.0.0.1:8080/');
-//       res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-//       next();
-// });
+//#endregion
 
 app.get('/test', function (req, res) {
       console.log('test')
@@ -79,83 +87,35 @@ app.get('/addEmail', async function (req, res) {
 });
 
 
-app.get('/addAddress', async function (req, res) {
+app.get('/codefor', async function (req, res) {
       if (req.query.address == undefined) {
             return res.status(501).json({
-                  status: 'error'
+                  status: 'error',
+                  message: 'Address has not been detected.'
             });
       }
-      newAddress = req.query.address
-      await dbConnect();
+      let Address = req.query.address;
+      if (Address.length != 42) {
+            return res.status(501).json({
+                  status: 'error',
+                  message: 'Address lenght is not valid.'
+            });
+      }
+      if (Address[0] != "0" || Address[1] != "x") {
+            return res.status(501).json({
+                  status: 'error',
+                  message: 'Address string is not valid.'
+            });
+      }
+
       console.log(' Add Address Start @@@@')
       try {
-
-            Data.findOne({ address: newAddress }).then(async (uCode) => {
-                  console.log('FindOne Res: ')
-                  console.log(uCode)
-                  if (uCode == null) {
-
-                        var code = await getACode();
-                        if (code == '000000') {
-                              return res.status(501).json({
-                                    status: 'error'
-                              });
-                        }
-                        var newData = {
-                              address: req.query.address,
-                              code: code
-                        }
-                        try {
-                              var result = await Data.create(newData);
-                              console.log('===========================================')
-                              console.log('===========================================')
-                              console.log('Save Result:')
-                              console.log(result)
-                              return res.status(200).json({
-                                    status: 'success',
-                                    code: code
-                              });
-                        } catch (error) {
-                              console.log('===========================================')
-                              console.log('===========================================')
-                              console.log('Save Result:')
-                              console.log('ERROR: ')
-                              console.log(error)
-                        }
-                  }
-                  else {
-                        return res.status(200).json({
-                              status: 'success',
-                              code: uCode.code
-                        });
-                  }
-
-            })
-
-            // , (res, err) => {
-            //       console.log('######################################################')
-            //       console.log(res)
-            //       console.log(err)
-            // })
-
-            // if (newA == undefined) {
-
-
-
-
-
-            // } else {
-
-            //       console.log('newA is:')
-            //       console.log(newA.address)
-            //       console.log(newA.code)
-            //       return newA.code
-            // }
-
-
-
-
-
+            var code = await getCodeForAddress(Address)
+            return res.status(200).json({
+                  status: 'success',
+                  address: Address,
+                  code: code
+            });
       } catch (error) {
 
             return res.status(501).json({
@@ -165,47 +125,39 @@ app.get('/addAddress', async function (req, res) {
       }
 });
 
-
-
-async function dbConnect() {
-      return new Promise((resolve, reject) => {
-            console.log('dbConnect start')
-            if (mongoose.connection.readyState == 1) {
-                  console.log('db is Connected')
-                  resolve(true)
-            } else {
-                  var counter = 0;
-                  mongoose.connect(dburi)
-                  var interval = setInterval(() => {
-                        if (mongoose.connection.readyState == 1) {
-                              clearInterval(interval)
-                              console.log('db has been Connected')
-                              resolve(true)
-                        }
-                        counter++
-                        if (counter > 30) {
-                              console.log('db Connect Failed')
-                              clearInterval(interval)
-                              resolve(false)
-                        }
-                        console.log('DB Conneting attempt ' + counter
-                        )
-                  }, 1000)
-            }
-      })
+async function getCodeForAddress(adr) {
+      var file = fs.readFileSync(addressDataFilePath, 'utf8');
+      var content = JSON.parse(file)
+      var code = content[adr];
+      console.log('code: ' + code)
+      if (code == undefined) {
+            var NC = await getCode();
+            content[adr] = NC;
+            content.existingCodes.push(NC);
+            fs.writeFileSync(addressDataFilePath, JSON.stringify(content,null,2),'utf8',(err)=>{
+                  if(err) console.log(err)
+            })
+             
+            return NC;
+      } else {
+            return code
+      }
 }
-
+ 
+ 
+ 
 
 app.get('/getAll', async function (req, res) {
-      console.log(req.query.passkey)
-      console.log(process.env.masterPassword)
+ 
       if (req.query.passkey == process.env.masterPassword) {
-            await dbConnect();
-            var fuser = await Data.find()
+            var file = fs.readFileSync(addressDataFilePath,'utf8')
+            var content = JSON.parse(file)
+            delete content.existingCodes
+            
 
             return res.status(200).json({
                   status: 'success',
-                  allUsers: fuser
+                  allUsers: content//JSON.parse(fuser )
             });
       } else {
             return res.status(200).json({
@@ -294,38 +246,96 @@ app.listen(port, async () => {
       console.log(`Example app listening on port ${port}!`);
 });
 
-function generateCode() {
+
+function getARandomChar() {
+      var chars = "0123456789abcdefghkmnprstwxyz"
+      return chars[Math.floor(Math.random() * 29)];
+}
+
+
+function generateCode(digits) {
       var t = ''
-      var v = ''
-      for (let i = 0; i < 6; i++) {
-            let x = Math.floor(Math.random() * 10)
-
-            if (i == 0) {
-                  if (x < 1) x = Math.floor(Math.random() * 10)
-                  if (x < 1) x = Math.floor(Math.random() * 10)
-                  if (x < 1) x = 1
-            }
-            if (i > 2) v = x
-
-            if (i > 3 && v == x) {
-                  if (x < 1) x = Math.floor(Math.random() * 10)
-                  if (x < 1) x = Math.floor(Math.random() * 10)
-                  if (x < 1) x = 1
-            }
-
-            t += x.toString()
+      for (let i = 0; i < digits; i++) {
+            t += getARandomChar()
       }
       return t
 }
 
-
-async function getACode() {
-      var x = generateCode()
-      for (let i = 0; i < 100; i++) {
-            var exist = await Data.findOne({ code: x })
-            if (exist == undefined) {
-                  return x
-            }
+async function getCode() {
+      var file = fs.readFileSync(addressDataFilePath, 'utf8')
+      var content = JSON.parse(file)
+      var existing = content.existingCodes;
+      for (let i = 0; i < 100000; i++) {
+            var newCode = generateCode(codeLength);
+            if (!existing.includes(newCode)) return newCode
       }
       return '000000'
+}
+
+
+
+
+
+async function getACode(length) {
+      console.log('getACode started')
+      //return new Promise(
+      fs.readFile(addressDataFilePath, async (err, file) => {
+            if (err) console.error(err)
+            var content = JSON.parse(file)
+            var existingCodes = content.existingCodes;
+            console.log('getACode existingCodes: ')
+            console.log(existingCodes)
+
+
+            for (let i = 0; i < 10000; i++) {
+                  var newCode = generateCode(length)
+                  if (existingCodes.includes(newCode)) {
+                  } else {
+                        console.log('before return   newCode: ' + newCode)
+                        // Promise.resolve(newCode)
+                        return newCode
+                  }
+            }
+
+            // var newCode = generateCode(length)
+            // var check = true;
+            // while (check) {
+            //       if (!existingCodes.includes(newCode)) {
+            //             check = false
+            //             console.log('before return   newCode: ' + newCode)
+            //             Promise.resolve (newCode)
+            //       } else {
+            //             newCode = generateCode(length)
+            //       }
+
+            // }
+      })
+      //)
+}
+
+
+
+
+
+//console.log(addAddressToDB('0x444cEA469D75BC034034C1464542bB5CDCeeeeee', generateCode()))
+
+function addAddressToDB(address, code) {
+      if (address.length != 42) {
+            console.error('Address lenght is not 42!')
+            return false
+      }
+      if (code.length != 6) {
+            console.error('Code lenght is not 6!')
+            return false
+      }
+
+      fs.readFile('./data/addressCodes.json', (err, file) => {
+            if (err) { console.error(err) }
+            var content = JSON.parse(file);
+            content[address] = code
+            fs.writeFile('./data/addressCodes.json', JSON.stringify(content, null, 2), (err) => {
+                  if (err) { console.error(err) }
+                  return true;
+            })
+      })
 }
