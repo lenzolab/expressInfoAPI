@@ -26,7 +26,7 @@ console.log('acceptedUrlArray')
 console.log(acceptedUrlArray)
 app.use(function (req, res, next) {
       console.log('use started')
-      console.info(req.headers)
+      //console.info(req.headers)
       const origin = req.headers.origin || req.headers.host;
       console.log('req origin   : ' + origin) 
 
@@ -40,8 +40,8 @@ app.use(function (req, res, next) {
 
             res.header("Access-Control-Allow-Origin", origin);
             res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-            console.log('Origin Has Been set to:')
-            console.log(origin)
+            //console.log('Origin Has Been set to:')
+            //console.log(origin)
             next();
       } else {
             console.log('Origin Error. check :')
@@ -62,29 +62,6 @@ app.get('/test', function (req, res) {
       });
 })
 
-app.get('/addEmail', async function (req, res) {
-      if (req.query.email == undefined) {
-            return res.status(501).json({
-                  status: 'error'
-            });
-      }
-      await dbConnect();
-
-      try {
-
-
-            var newData = {
-                  email: req.query.email,
-            }
-
-            Data.create(newData)
-
-            res.send('New User OK!');
-
-      } catch (error) {
-            res.send('New User error!');
-      }
-});
 
 
 app.get('/codefor', async function (req, res) {
@@ -98,7 +75,7 @@ app.get('/codefor', async function (req, res) {
       if (Address.length != 42) {
             return res.status(501).json({
                   status: 'error',
-                  message: 'Address lenght is not valid.'
+                  message: 'Address length is not valid.'
             });
       }
       if (Address[0] != "0" || Address[1] != "x") {
@@ -144,8 +121,74 @@ async function getCodeForAddress(adr) {
       }
 }
  
- 
- 
+app.get('/addressofcode', (req,res)=>{
+      console.log(' get address for code started')
+      if (req.query.code == undefined) {
+            return res.status(501).json({
+                  status: 'error',
+                  message: 'Code has not been detected.'
+            });
+      }
+      if (req.query.code.length != 4) {
+            return res.status(501).json({
+                  status: 'error',
+                  message: 'Code length is not valid.'
+            });
+      }
+
+      var file =  fs.readFileSync(addressDataFilePath,'utf8')
+      var content = JSON.parse(file)
+
+    
+
+      if (!content.existingCodes.includes(req.query.code)) {
+            return res.status(501).json({
+                  status: 'error',
+                  message: 'Code does not exist.'
+            });
+      }else{
+            for (key in content){
+                  if (content[key] == req.query.code){
+                        return res.status(200).json({
+                              status: 'success',
+                              code: req.query.code,
+                              address: key
+                        });
+                  }
+            }
+      }
+      return res.status(501).json({
+            status: 'error',
+            message: 'unknown error happend on server.'
+      });
+})
+
+
+
+
+app.get('/addEmail', async function (req, res) {
+      if (req.query.email == undefined) {
+            return res.status(501).json({
+                  status: 'error'
+            });
+      }
+      await dbConnect();
+
+      try {
+
+
+            var newData = {
+                  email: req.query.email,
+            }
+
+            Data.create(newData)
+
+            res.send('New User OK!');
+
+      } catch (error) {
+            res.send('New User error!');
+      }
+});
 
 app.get('/getAll', async function (req, res) {
  

@@ -1,8 +1,8 @@
 {
   "Dataset": "AddressCodes",
   "existingCodes": [
-    "445979",
-    "488317",
+    "4030",
+    "nvme",
     "9r06",
     "ndks",
     "zk26",
@@ -11,8 +11,8 @@
     "d0mg",
     "yhg3"
   ],
-  "0xf1ccEA469D75BC034034C1464542bB5CDC5515c2": "445979",
-  "0x444cEA469D75BC034034C1464542bB5CDCeeeeee": "488317",
+  "0xf1ccEA469D75BC034034C1464542bB5CDC5515c2": "4030",
+  "0x444cEA469D75BC034034C1464542bB5CDCeeeeee": "nvme",
   "0xd1ccEA469D75BC034034C1464542bB5CDC5515c2": "9r06",
   "0xf1ccEA469D75BC034034C14645d2bB5CDC5515c2": "ndks",
   "0xf1ccEA4e9D75BC034034C1464542bB5CDC5515c2": "zk26",
