@@ -6,6 +6,7 @@ const port = process.env.PORT || 3000;
 var dburi = process.env.dburi
 const cors = require('cors');
 var fs = require('fs');
+const { emit } = require('process');
 // const { setFlagsFromString } = require('v8');
 // const { Promise } = require('mongoose');
 // const { setTimeout } = require('timers/promises');
@@ -14,6 +15,7 @@ var fs = require('fs');
 
 const codeLength = 4;
 const addressDataFilePath = './data/addressCodes.json'
+const emailDataFilePath = './data/email.json'
 
 //#endregion
 
@@ -28,7 +30,7 @@ app.use(function (req, res, next) {
       console.log('use started')
       //console.info(req.headers)
       const origin = req.headers.origin || req.headers.host;
-      console.log('req origin   : ' + origin) 
+      console.log('req origin   : ' + origin)
 
       var accept = ''
 
@@ -44,26 +46,20 @@ app.use(function (req, res, next) {
             //console.log(origin)
             next();
       } else {
-            console.log('Origin Error. check :')
+            console.log('Origin Error. check if this origin is accepted on env:')
             console.log(origin)
       }
 
 });
 //#endregion
 
-app.get('/test', function (req, res) {
-      console.log('test')
-      console.log(req.headers.origin)
-      var org = req.headers.origin
-      return res.status(200).json({
-            status: 'success',
-            time: Date(Date.now()),
-            origin: org
-      });
-})
 
 
+//#region ========>>>   Referral codes   <<<========
 
+// Public end point ##
+// Input: Address
+// returns the assigned code for the address.
 app.get('/codefor', async function (req, res) {
       if (req.query.address == undefined) {
             return res.status(501).json({
@@ -102,26 +98,12 @@ app.get('/codefor', async function (req, res) {
       }
 });
 
-async function getCodeForAddress(adr) {
-      var file = fs.readFileSync(addressDataFilePath, 'utf8');
-      var content = JSON.parse(file)
-      var code = content[adr];
-      console.log('code: ' + code)
-      if (code == undefined) {
-            var NC = await getCode();
-            content[adr] = NC;
-            content.existingCodes.push(NC);
-            fs.writeFileSync(addressDataFilePath, JSON.stringify(content,null,2),'utf8',(err)=>{
-                  if(err) console.log(err)
-            })
-             
-            return NC;
-      } else {
-            return code
-      }
-}
- 
-app.get('/addressofcode', (req,res)=>{
+
+
+// Public end point ##
+// Input: code
+// returns the address for the given code.
+app.get('/addressofcode', (req, res) => {
       console.log(' get address for code started')
       if (req.query.code == undefined) {
             return res.status(501).json({
@@ -136,19 +118,19 @@ app.get('/addressofcode', (req,res)=>{
             });
       }
 
-      var file =  fs.readFileSync(addressDataFilePath,'utf8')
+      var file = fs.readFileSync(addressDataFilePath, 'utf8')
       var content = JSON.parse(file)
 
-    
+
 
       if (!content.existingCodes.includes(req.query.code)) {
             return res.status(501).json({
                   status: 'error',
                   message: 'Code does not exist.'
             });
-      }else{
-            for (key in content){
-                  if (content[key] == req.query.code){
+      } else {
+            for (key in content) {
+                  if (content[key] == req.query.code) {
                         return res.status(200).json({
                               status: 'success',
                               code: req.query.code,
@@ -164,39 +146,15 @@ app.get('/addressofcode', (req,res)=>{
 })
 
 
+// Public end point ## Access ristricted to pass key for admin.
+// returns all registered addresses and their code.
+app.get('/getAllAddress', async function (req, res) {
 
-
-app.get('/addEmail', async function (req, res) {
-      if (req.query.email == undefined) {
-            return res.status(501).json({
-                  status: 'error'
-            });
-      }
-      await dbConnect();
-
-      try {
-
-
-            var newData = {
-                  email: req.query.email,
-            }
-
-            Data.create(newData)
-
-            res.send('New User OK!');
-
-      } catch (error) {
-            res.send('New User error!');
-      }
-});
-
-app.get('/getAll', async function (req, res) {
- 
       if (req.query.passkey == process.env.masterPassword) {
-            var file = fs.readFileSync(addressDataFilePath,'utf8')
+            var file = fs.readFileSync(addressDataFilePath, 'utf8')
             var content = JSON.parse(file)
             delete content.existingCodes
-            
+
 
             return res.status(200).json({
                   status: 'success',
@@ -215,56 +173,132 @@ app.get('/getAll', async function (req, res) {
 });
 
 
-app.get('/getAddresses', async function (req, res) {
-      if (req.query.passkey == process.env.masterPassword) {
-            await dbConnect();
-            var fuser = await Data.find({
-                  address: {
-                        "$ne": null
-                  }
+
+//#region generation of referral code
+
+// returns a random char from the specified char set.
+function getARandomChar() {
+      var chars = "0123456789abcdefghkmnprstwxyz"
+      return chars[Math.floor(Math.random() * 29)];
+}
+
+// generate a code with a specific length
+function generateCode(digits) {
+      var t = ''
+      for (let i = 0; i < digits; i++) {
+            t += getARandomChar()
+      }
+      return t
+}
+
+
+// generates a new unique code
+async function getCode() {
+      var file = fs.readFileSync(addressDataFilePath, 'utf8')
+      var content = JSON.parse(file)
+      var existing = content.existingCodes;
+      for (let i = 0; i < 100000; i++) {
+            var newCode = generateCode(codeLength);
+            if (!existing.includes(newCode)) return newCode
+      }
+      return '000000'
+}
+
+// assigns a code to an address
+async function getCodeForAddress(adr) {
+      var file = fs.readFileSync(addressDataFilePath, 'utf8');
+      var content = JSON.parse(file)
+      var code = content[adr];
+      console.log('code: ' + code)
+      if (code == undefined) {
+            var NC = await getCode();
+            content[adr] = NC;
+            content.existingCodes.push(NC);
+            fs.writeFileSync(addressDataFilePath, JSON.stringify(content, null, 2), 'utf8', (err) => {
+                  if (err) console.log(err)
             })
 
-            var addresses = new Array()
-            fuser.forEach(element => {
-                  addresses.push(element.address)
-            });
-            return res.status(200).json({
-                  status: 'success',
-                  addresses: addresses
-            });
+            return NC;
       } else {
-            return res.status(200).json({
-                  status: 'success',
-                  data: {
-                        address: null,
-                  }
+            return code
+      }
+}
 
+//#endregion
+
+//#endregion
+
+
+
+
+
+//#region ========>>>   Email   <<<========
+
+// Public endpoint
+// Input: Email address
+// Adds the email address to the email list
+app.get('/addEmail', async function (req, res) {
+      if (req.query.email == undefined) {
+            return res.status(501).json({
+                  status: 'error',
+                  message: 'email not detected on the query params.'
             });
       }
 
+      try {
+
+            var newEmail = req.query.email;
+            if (!validateEmail(newEmail)) {
+                  return res.status(501).json({
+                        status: 'error',
+                        message: 'email format is not valid.'
+                  });
+            }
+
+            var file = fs.readFileSync(emailDataFilePath, 'utf8');
+            var content = JSON.parse(file)
+            if (!content.emails.includes(newEmail)) {
+                  content.emails.push(newEmail);
+                  fs.writeFileSync(emailDataFilePath, JSON.stringify(content, null, 2), 'utf8', (err) => {
+                        if (err) console.log(err)
+                  })
+                  console.log('email added: ' + newEmail)
+            }
+
+
+
+
+            return res.status(200).json({
+                  status: 'success',
+                  message: 'email has been added to the list.'
+            });
+
+      } catch (error) {
+            return res.status(501).json({
+                  status: 'error',
+                  message: 'Could not add the email to the list.'
+            });
+      }
 });
 
+//Validates the input email format
+const validateEmail = (email) => {
+      return email.match(
+            /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
+      );
+};
 
-
+// Public endpoint ## Access ristricted to pass key for admin.
+// Returns the email list
 app.get('/getEmails', async function (req, res) {
       console.log(req.query.passkey)
       console.log(process.env.masterPassword)
       if (req.query.passkey == process.env.masterPassword) {
-            await dbConnect();
-            var fuser = await Data.find({
-                  email: {
-                        "$ne": null
-                  }
-            })
-            console.log('The fetched user:')
-            console.log(typeof (fuser))
-            var emails = new Array()
-            fuser.forEach(element => {
-                  emails.push(element.email)
-            });
+            var file = fs.readFileSync(emailDataFilePath, 'utf8');
+            var content = JSON.parse(file)
             return res.status(200).json({
                   status: 'success',
-                  emails: emails
+                  content: content
             });
       } else {
             return res.status(200).json({
@@ -278,107 +312,42 @@ app.get('/getEmails', async function (req, res) {
 
 });
 
+//#endregion
 
 
+
+
+
+
+//#region ========>>>   Application Listen   <<<========
+
+
+// returns "Hello World"
 app.get('/', function (req, res) {
       res.send('Hello World!');
 });
 
 
+// Retruns an object for test. Example:
+/*
+{
+"status": "success",
+"time": "Sun Mar 10 2024 12:40:52 GMT+0000 (Coordinated Universal Time)"
+}
+*/
+app.get('/test', function (req, res) {
+      console.log('test')
+      console.log(req.headers.origin)
+      var org = req.headers.origin
+      return res.status(200).json({
+            status: 'success',
+            time: Date(Date.now()),
+            origin: org
+      });
+})
+
+// Runs the app on the Port
 app.listen(port, async () => {
       console.log(`Example app listening on port ${port}!`);
 });
-
-
-function getARandomChar() {
-      var chars = "0123456789abcdefghkmnprstwxyz"
-      return chars[Math.floor(Math.random() * 29)];
-}
-
-
-function generateCode(digits) {
-      var t = ''
-      for (let i = 0; i < digits; i++) {
-            t += getARandomChar()
-      }
-      return t
-}
-
-async function getCode() {
-      var file = fs.readFileSync(addressDataFilePath, 'utf8')
-      var content = JSON.parse(file)
-      var existing = content.existingCodes;
-      for (let i = 0; i < 100000; i++) {
-            var newCode = generateCode(codeLength);
-            if (!existing.includes(newCode)) return newCode
-      }
-      return '000000'
-}
-
-
-
-
-
-async function getACode(length) {
-      console.log('getACode started')
-      //return new Promise(
-      fs.readFile(addressDataFilePath, async (err, file) => {
-            if (err) console.error(err)
-            var content = JSON.parse(file)
-            var existingCodes = content.existingCodes;
-            console.log('getACode existingCodes: ')
-            console.log(existingCodes)
-
-
-            for (let i = 0; i < 10000; i++) {
-                  var newCode = generateCode(length)
-                  if (existingCodes.includes(newCode)) {
-                  } else {
-                        console.log('before return   newCode: ' + newCode)
-                        // Promise.resolve(newCode)
-                        return newCode
-                  }
-            }
-
-            // var newCode = generateCode(length)
-            // var check = true;
-            // while (check) {
-            //       if (!existingCodes.includes(newCode)) {
-            //             check = false
-            //             console.log('before return   newCode: ' + newCode)
-            //             Promise.resolve (newCode)
-            //       } else {
-            //             newCode = generateCode(length)
-            //       }
-
-            // }
-      })
-      //)
-}
-
-
-
-
-
-//console.log(addAddressToDB('0x444cEA469D75BC034034C1464542bB5CDCeeeeee', generateCode()))
-
-function addAddressToDB(address, code) {
-      if (address.length != 42) {
-            console.error('Address lenght is not 42!')
-            return false
-      }
-      if (code.length != 6) {
-            console.error('Code lenght is not 6!')
-            return false
-      }
-
-      fs.readFile('./data/addressCodes.json', (err, file) => {
-            if (err) { console.error(err) }
-            var content = JSON.parse(file);
-            content[address] = code
-            fs.writeFile('./data/addressCodes.json', JSON.stringify(content, null, 2), (err) => {
-                  if (err) { console.error(err) }
-                  return true;
-            })
-      })
-}
+//#endregion
