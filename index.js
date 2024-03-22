@@ -55,6 +55,20 @@ app.use(function (req, res, next) {
 
 
 
+
+//#region ========>>>   Like NFTs   <<<========
+var Routes = require('./routes');
+app.get('/like/all', Routes.all);
+app.get('/like/like', Routes.like);
+app.get('/like/unlike', Routes.unlike);
+app.get('/like/likesOfAddress', Routes.likesOfAddress);
+//#endregion
+
+
+
+
+
+
 //#region ========>>>   Referral codes   <<<========
 
 // Public end point ##
